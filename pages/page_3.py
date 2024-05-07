@@ -217,7 +217,6 @@ with ph.container():
                 except ValueError as e:
                     # Catch the error and reset the page to 0
                     st.session_state.page = 0
-                    st.subheader("HOTEL MERT")
                     st.image(background_path, use_column_width=True)
                     st.button("Generate Random Data", on_click=page_utils.second_page)
 
