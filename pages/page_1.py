@@ -3,7 +3,6 @@ from st_pages import Page, show_pages
 from streamlit.components.v1 import html
 from utils.charts import create_chart, create_chart2, create_chart3, create_chart4, create_chart5, create_chart6
 
-
 st.set_page_config(layout="wide")
 
 # Pages Design to Side Bar
