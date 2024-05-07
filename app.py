@@ -1,8 +1,6 @@
 import streamlit as st
 from st_pages import Page, show_pages
 
-
-
 # Pages Design to Side Bar
 show_pages(
     [
@@ -61,14 +59,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 col1, col2, col3 = st.columns([1, 4, 1])
 
 with col2:
     st.image("assets/images/newlogo2.png")
 
-
-# Sayfa Footer HTML Kod Uygulaması
+# Page Footer HTML Code Application
 with open("assets/html/footer.html", "r", encoding="utf-8") as pred:
     footer_html = f"""{pred.read()}"""
     st.markdown(footer_html, unsafe_allow_html=True)

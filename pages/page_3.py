@@ -90,8 +90,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-
-#####################################
 # Coordinate dictionary
 coordinates = {
     "room1": (454, 199),
@@ -262,7 +260,7 @@ chat_plh_style = f"""
 
 st.markdown(chat_plh_style, unsafe_allow_html=True)
 
-# Sayfa Footer HTML Kod Uygulaması
+# Page Footer HTML Code Application
 with open("assets/html/footer.html", "r", encoding="utf-8") as pred:
     footer_html = f"""{pred.read()}"""
     st.markdown(footer_html, unsafe_allow_html=True)
