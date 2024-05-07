@@ -1,11 +1,11 @@
-import numpy as np
+import joblib
 import streamlit as st
 import pandas as pd
 import random
 from st_pages import Page, show_pages
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
-from utils import page_utils
+from utils import page_utils, preparation_df
 
 
 st.set_page_config(layout="wide")
@@ -176,7 +176,7 @@ with ph.container():
                     special_requests_value = 0
 
                 single_df = pd.DataFrame({
-                    'Booking_ID': [np.nan],
+                    'Booking_ID': ["none"],
                     'number of adults': [adult],
                     'number of children': [kid],
                     'number of weekend nights': [weekend],
@@ -187,13 +187,18 @@ with ph.container():
                     'lead time': [lead_time],
                     'market segment type': [selected_market_segment_type],
                     'repeated': [1 if repeated else 0],
-                    'P-C': [np.nan],
-                    'P-not-C': [np.nan],
+                    'P-C': ["none"],
+                    'P-not-C': ["none"],
                     'average price': [average_price],
                     'special requests': [special_requests_value],
-                    'date of reservation': [selected_date.strftime('%m/%d/%y') if selected_date else None],
-                    'booking status': [np.nan]
+                    'date of reservation': [selected_date.strftime('%y/%m/%d') if selected_date else None],
+                    'booking status': ["none"]
                 })
+
+                prep_df = preparation_df(single_df)
+
+                new_model = joblib.load("model/lgbm.pkl")
+                predict_df = new_model.predict(prep_df)
 
                 # Ekrana yazdır
                 st.write(single_df)
