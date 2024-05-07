@@ -5,7 +5,7 @@ import random
 from st_pages import Page, show_pages
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
-from utils import page_utils, preparation_df
+from utils import page_utils
 
 
 st.set_page_config(layout="wide")
@@ -195,10 +195,7 @@ with ph.container():
                     'booking status': ["none"]
                 })
 
-                prep_df = preparation_df(single_df)
 
-                new_model = joblib.load("model/lgbm.pkl")
-                predict_df = new_model.predict(prep_df)
 
                 # Ekrana yazdır
                 st.write(single_df)
