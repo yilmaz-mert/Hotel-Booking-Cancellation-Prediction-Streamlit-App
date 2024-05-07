@@ -177,7 +177,6 @@ with ph.container():
 
         with col1:
             if st.session_state.page == 0:
-                st.subheader("HOTEL MERT")
                 st.image(background_path, use_column_width=True)
                 st.button("Generate Random Data", on_click=page_utils.second_page)
 
@@ -190,7 +189,6 @@ with ph.container():
                 result_image = simulation_utils.generate_result_image(result_image, overlay, selected_coordinate)
 
                 # Put the new image
-                st.subheader("HOTEL MERT")
                 st.image("assets/images/generated_data.jpg", use_column_width=True)
                 st.button("Generate Random Data", on_click=page_utils.second_page)
                 st.button("Make Predictions", on_click=page_utils.third_page)
@@ -210,7 +208,6 @@ with ph.container():
                     result_image = simulation_utils.generate_result_image(result_image, overlay, selected_coordinate)
 
                     # Put the new image
-                    st.subheader("HOTEL MERT")
                     st.image(result_image, caption=f"{len(non_zero_predictions)}", use_column_width=True)
                     st.button("Generate Random Data", on_click=page_utils.second_page)
 
