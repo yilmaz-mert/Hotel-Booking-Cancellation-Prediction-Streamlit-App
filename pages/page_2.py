@@ -159,8 +159,7 @@ with ph.container():
 
         if st.button("Predict"):
             # Check the validity of all inputs
-            if (car_parking_space and special_request and repeated and
-                    lead_time > 0 and adult >= 0 and week >= 0 and selected_meal_type is not None and selected_date is not None and
+            if(lead_time > 0 and adult >= 0 and week >= 0 and selected_meal_type is not None and selected_date is not None and
                     average_price >= 0 and kid >= 0 and weekend >= 0 and
                     selected_market_segment_type is not None and selected_room_type is not None):
                 # Estimate if all inputs are valid
