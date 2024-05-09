@@ -3,7 +3,7 @@ import cv2
 import random
 import pandas as pd
 from st_pages import Page, show_pages
-from utils import simulation_utils, page_utils
+from utils import simulation_utils, page_utils, preparation_df
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import load_iris
 
@@ -145,21 +145,9 @@ result_image_path = "assets/images/hilal.png"
 result_image = cv2.imread(result_image_path, cv2.IMREAD_UNCHANGED)
 result_image = cv2.cvtColor(result_image, cv2.COLOR_BGRA2RGBA)  # Convert from BGRA to RGBA
 
-# # Load model
-# model_path = "model/voting_clf.pkl"
-# model = load(model_path)
-
-# Load iris data set
-iris = load_iris()
-df = pd.DataFrame(iris.data, columns=iris.feature_names)
-y = iris.target
-
-# Train the model
-model = RandomForestClassifier()
-model.fit(df, y)
-
-# # Load the CSV file
-# df = pd.read_csv("data/booking.csv")
+# load dataframe
+df = pd.read_csv("data/booking.csv")
+random_sample = df.sample(n=38)
 
 if 'page' not in st.session_state:
     st.session_state.page = 0
@@ -177,7 +165,7 @@ with ph.container():
 
         with col1:
             if st.session_state.page == 0:
-                st.subheader("HOTEL MERT")
+                st.subheader("Hotel California")
                 st.image(background_path, use_column_width=True)
                 st.button("Generate Random Data", on_click=page_utils.second_page)
 
@@ -190,7 +178,7 @@ with ph.container():
                 result_image = simulation_utils.generate_result_image(result_image, overlay, selected_coordinate)
 
                 # Put the new image
-                st.subheader("HOTEL MERT")
+                st.subheader("Hotel California")
                 st.image("assets/images/generated_data.jpg", use_column_width=True)
                 st.button("Generate Random Data", on_click=page_utils.second_page)
                 st.button("Make Predictions", on_click=page_utils.third_page)
@@ -198,10 +186,10 @@ with ph.container():
             elif st.session_state.page == 2:
                 try:
                     # Make predictions
-                    predictions = model.predict(st.session_state.random_df)
+                    predictions = preparation_df.booking_data_prep_for_prediction(df, random_sample)
 
                     # Select non-0 from the predictions
-                    non_zero_predictions = predictions[predictions != 0]
+                    non_zero_predictions = predictions[predictions != 1]
 
                     # Randomly select selected coordinates
                     selected_coordinate = random.sample(list(coordinates.values()), len(non_zero_predictions))
@@ -210,14 +198,14 @@ with ph.container():
                     result_image = simulation_utils.generate_result_image(result_image, overlay, selected_coordinate)
 
                     # Put the new image
-                    st.subheader("HOTEL MERT")
-                    st.image(result_image, caption=f"{len(non_zero_predictions)}", use_column_width=True)
+                    st.subheader("Hotel California")
+                    st.image(result_image, caption=f"{38-len(non_zero_predictions)}", use_column_width=True)
                     st.button("Generate Random Data", on_click=page_utils.second_page)
 
                 except ValueError as e:
                     # Catch the error and reset the page to 0
                     st.session_state.page = 0
-                    st.subheader("HOTEL MERT")
+                    st.subheader("Hotel California")
                     st.image(background_path, use_column_width=True)
                     st.button("Generate Random Data", on_click=page_utils.second_page)
 
@@ -228,15 +216,17 @@ with ph.container():
 
             elif st.session_state.page == 1:
                 st.subheader("Generated random data:")
-                st.write(st.session_state.random_df)
+                drop_df = random_sample.drop(['booking status'], axis=1)
+                st.write(drop_df)
 
             elif st.session_state.page == 2:
                 try:
                     # Add predictions as a new column to the DataFrame
-                    st.session_state.random_df['Predictions'] = predictions
+                    drop_df2 = random_sample.drop(['booking status'], axis=1)
+                    drop_df2['Predictions'] = predictions
                     # View predictions
                     st.subheader("Data with Predictions:")
-                    st.write(st.session_state.random_df)
+                    st.write(drop_df2)
                 except ValueError as e:
                     # Catch the error and reset the page to 0
                     st.session_state.page = 0

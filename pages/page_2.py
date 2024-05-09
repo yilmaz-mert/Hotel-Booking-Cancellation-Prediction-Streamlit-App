@@ -5,7 +5,9 @@ import random
 from st_pages import Page, show_pages
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
-from utils import page_utils
+from sklearn.tree import DecisionTreeClassifier
+from utils import page_utils, preparation_df
+from sklearn.feature_selection import RFE
 
 
 st.set_page_config(layout="wide")
@@ -96,13 +98,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 #####################################
-# Load the iris dataset
-iris = load_iris()
-iris_df = pd.DataFrame(iris.data, columns=iris.feature_names)
-iris_df.head()
-# Load the model
-model = RandomForestClassifier()
-model.fit(iris.data, iris.target)
+
+old_data = pd.read_csv("data/booking.csv")
 
 if 'page' not in st.session_state:
     st.session_state.page = 0
@@ -191,14 +188,23 @@ with ph.container():
                     'P-not-C': ["none"],
                     'average price': [average_price],
                     'special requests': [special_requests_value],
-                    'date of reservation': [selected_date.strftime('%y/%m/%d') if selected_date else None],
-                    'booking status': ["none"]
+                    'date of reservation': [selected_date.strftime('%m/%d/%Y') if selected_date else None],
+                    'booking status': [1]
                 })
 
-
+                single_df.to_csv('single_df.csv', index=False)
+                prediction = preparation_df.booking_data_prep_for_prediction(old_data, single_df)
 
                 # Ekrana yazdır
+                single_df['Predictions'] = prediction
+                single_df = single_df.drop(['Booking_ID', 'P-C', 'P-not-C', 'booking status'], axis=1)
                 st.write(single_df)
+
+                if prediction == 0:
+                    st.subheader("**Hotel reservation will be :red[not cancelled]**")
+
+                elif prediction == 1:
+                    st.subheader("**Hotel reservation will be :red[cancelled]**")
 
             else:
                 st.warning("Please fill in all entries or enter a valid value.")
@@ -216,7 +222,7 @@ with ph.container():
                     st.error("Error reading the file. Please make sure the file format is correct.")
                 else:
                     # Check if uploaded data has the same features as iris dataset
-                    if set(df.columns) != set(iris_df.columns):
+                    if set(df.columns) != set(old_data.columns):
                         st.error("The uploaded data does not match the required format of the iris dataset.")
                     else:
                         # Perform the operations for predictions here
@@ -233,10 +239,11 @@ with ph.container():
             uploaded_file = st.file_uploader("Upload a file", type=["csv"], key="file", on_change=page_utils.first_page)
             # Make predictions
             df = pd.read_csv(uploaded_file)
-            predictions = model.predict(df)
+            predictions = preparation_df.booking_data_prep_for_prediction(old_data, df)
 
             # Add predictions as a new column to the DataFrame
             df['Predictions'] = predictions
+            df = df.drop(['booking status'], axis=1)
 
             # Show DataFrame with predictions
             st.write("Data with Predictions:")
