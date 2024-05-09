@@ -44,19 +44,17 @@ In the model development phase, we followed these steps:
 
 **These steps ensured the successful execution of the project, and as a result, we implemented the LightGBM model in the web application for users.**
 
-![](assets/images/home_page.png)
-
 ## Web Application
 
 **We developed a user-friendly web application using Streamlit, offering the following features:**
 
-![](assets/images/data_analysis.png)
+![](assets/images/home_page.png)
 
 ### Data Visualization
 
 - We designed an interactive page with integrated Vizzu charts, allowing users to explore the dataset visually through dynamic animated charts. Users can customize the charts based on different variables, providing insights into trends and patterns within the data.
 
-![](assets/images/data_entry.png)
+![](assets/images/data_analysis.png)
 
 ### Data Input and Prediction
 
@@ -66,7 +64,7 @@ In the model development phase, we followed these steps:
 
   - **Multiple Data Points Prediction**: Users can input multiple data points simultaneously, either by uploading a CSV file or by manually entering data. The application provides predictions for all inputted data points, facilitating bulk analysis and decision-making.
 
-![](assets/images/simulation.png)
+![](assets/images/data_entry.png)
 
 ### Simulation
 
@@ -74,6 +72,8 @@ In the model development phase, we followed these steps:
 
   - **Random Observation Selection**: Users can randomly select 38 observations from the dataset to simulate real-world scenarios.
   - **Dynamic Visualization**: We integrated OpenCV to generate dynamic images and gifs, enhancing the visualization of predictions. Users can quickly observe the predictions alongside the original data points, aiding in understanding the model's performance.
+
+![](assets/images/simulation.png)
 
 ### About
 
