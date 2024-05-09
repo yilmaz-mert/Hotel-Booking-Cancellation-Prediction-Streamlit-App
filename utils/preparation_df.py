@@ -15,26 +15,26 @@ def booking_data_prep_for_prediction(old_data, new_data):
     def grab_col_names(dataframe, cat_th=8, car_th=20):
         """
 
-        Veri setindeki kategorik, numerik ve kategorik fakat kardinal değişkenlerin isimlerini verir.
-        Not: Kategorik değişkenlerin içerisine numerik görünümlü kategorik değişkenler de dahildir.
+        Returns the names of categorical, numeric and categorical but cardinal variables in the data set.
+        Note Categorical variables include categorical variables with numeric appearance.
 
         Parameters
         ------
             dataframe: dataframe
-                    Değişken isimleri alınmak istenilen dataframe
+                    Variable names of the dataframe to be taken
             cat_th: int, optional
-                    numerik fakat kategorik olan değişkenler için sınıf eşik değeri
+                    class threshold for numeric but categorical variables
             car_th: int, optinal
-                    kategorik fakat kardinal değişkenler için sınıf eşik değeri
+                    class threshold for categorical but cardinal variables
 
         Returns
         ------
             cat_cols: list
-                    Kategorik değişken listesi
+                    Categorical variable list
             num_cols: list
-                    Numerik değişken listesi
+                    Numeric variable list
             cat_but_car: list
-                    Kategorik görünümlü kardinal değişken listesi
+                    List of cardinal variables with categorical appearance
 
         Examples
         ------
@@ -45,12 +45,11 @@ def booking_data_prep_for_prediction(old_data, new_data):
 
         Notes
         ------
-            cat_cols + num_cols + cat_but_car = toplam değişken sayısı
-            num_but_cat cat_cols'un içerisinde.
-            Return olan 3 liste toplamı toplam değişken sayısına eşittir: cat_cols + num_cols + cat_but_car = değişken sayısı
+            cat_cols + num_cols + cat_but_car = total number of variables
+            num_but_cat is inside cat_cols.
+            The sum of the 3 return lists equals the total number of variables: cat_cols + num_cols + cat_but_car = number of variables
 
         """
-
         # cat_cols, cat_but_car
         cat_cols = [col for col in dataframe.columns if dataframe[col].dtypes == "O"]
         num_but_cat = [col for col in dataframe.columns if dataframe[col].nunique() < cat_th and
@@ -91,10 +90,10 @@ def booking_data_prep_for_prediction(old_data, new_data):
             plt.show()
         return drop_list
 
-    def remove_outlier(dataframe, num_cols):
-        low_limit, up_limit = outlier_thresholds(dataframe, num_cols)
-        df_without_outliers = dataframe[~((dataframe[num_cols] < low_limit) | (dataframe[num_cols] > up_limit))]
-        return df_without_outliers
+    # def remove_outlier(dataframe, num_cols):
+    #     low_limit, up_limit = outlier_thresholds(dataframe, num_cols)
+    #     df_without_outliers = dataframe[~((dataframe[num_cols] < low_limit) | (dataframe[num_cols] > up_limit))]
+    #     return df_without_outliers
 
     def rare_encoder(dataframe, rare_perc):
         temp_df = dataframe.copy()
@@ -131,7 +130,7 @@ def booking_data_prep_for_prediction(old_data, new_data):
 
     dataframe = pd.concat([old_data, new_data])
 
-    dataframe = dataframe.drop(["Booking_ID","P-C", "P-not-C"], axis=1)
+    dataframe = dataframe.drop(["Booking_ID", "P-C", "P-not-C"], axis=1)
     dataframe['booking status'] = dataframe['booking status'].replace({'Canceled': 1, 'Not_Canceled': 0}).astype(int)
     dataframe["date of reservation"] = pd.to_datetime(dataframe["date of reservation"], format="%m/%d/%Y",
                                                       errors='coerce')
@@ -146,8 +145,8 @@ def booking_data_prep_for_prediction(old_data, new_data):
             num_cols.append(col)
             cat_cols.remove(col)
 
-    for col in num_cols:
-        dataframe = remove_outlier(dataframe, col)
+    # for col in num_cols:
+    #     dataframe = remove_outlier(dataframe, col)
 
     dataframe["total number of customers"] = dataframe["number of adults"] + dataframe["number of children"]
 
@@ -220,7 +219,7 @@ def booking_data_prep_for_prediction(old_data, new_data):
     y = dataframe["booking status"]
     X = dataframe.drop(["booking status"], axis=1)
 
-    estimator = DecisionTreeClassifier()
+    estimator = DecisionTreeClassifier(random_state=47)
 
     rfe_best = RFE(estimator, n_features_to_select=60)
 
