@@ -1,238 +1,177 @@
 import joblib
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-import seaborn as sns
-from datetime import timedelta
-from sklearn.preprocessing import LabelEncoder, RobustScaler
 import re
-from sklearn.feature_selection import RFE
-from sklearn.tree import DecisionTreeClassifier
+from utils.feature_functions import *
 
 
-def booking_data_prep_for_prediction(old_data, new_data):
-
-    def grab_col_names(dataframe, cat_th=8, car_th=20):
-        """
-
-        Returns the names of categorical, numeric and categorical but cardinal variables in the data set.
-        Note Categorical variables include categorical variables with numeric appearance.
-
-        Parameters
-        ------
-            dataframe: dataframe
-                    Variable names of the dataframe to be taken
-            cat_th: int, optional
-                    class threshold for numeric but categorical variables
-            car_th: int, optinal
-                    class threshold for categorical but cardinal variables
-
-        Returns
-        ------
-            cat_cols: list
-                    Categorical variable list
-            num_cols: list
-                    Numeric variable list
-            cat_but_car: list
-                    List of cardinal variables with categorical appearance
-
-        Examples
-        ------
-            import seaborn as sns
-            df = sns.load_dataset("iris")
-            print(grab_col_names(df))
-
-
-        Notes
-        ------
-            cat_cols + num_cols + cat_but_car = total number of variables
-            num_but_cat is inside cat_cols.
-            The sum of the 3 return lists equals the total number of variables: cat_cols + num_cols + cat_but_car = number of variables
-
-        """
-        # cat_cols, cat_but_car
-        cat_cols = [col for col in dataframe.columns if dataframe[col].dtypes == "O"]
-        num_but_cat = [col for col in dataframe.columns if dataframe[col].nunique() < cat_th and
-                       dataframe[col].dtypes != "O"]
-        cat_but_car = [col for col in dataframe.columns if dataframe[col].nunique() > car_th and
-                       dataframe[col].dtypes == "O"]
-        cat_cols = cat_cols + num_but_cat
-        cat_cols = [col for col in cat_cols if col not in cat_but_car]
-
-        # num_cols
-        num_cols = [col for col in dataframe.columns if dataframe[col].dtypes != "O"]
-        num_cols = [col for col in num_cols if col not in num_but_cat]
-
-        # print(f"Observations: {dataframe.shape[0]}")
-        # print(f"Variables: {dataframe.shape[1]}")
-        # print(f'cat_cols: {len(cat_cols)}')
-        # print(f'num_cols: {len(num_cols)}')
-        # print(f'cat_but_car: {len(cat_but_car)}')
-        # print(f'num_but_cat: {len(num_but_cat)}')
-        return cat_cols, num_cols, cat_but_car
-
-    def outlier_thresholds(dataframe, col_name, q1=0.01, q3=0.99):
-        quartile1 = dataframe[col_name].quantile(q1)
-        quartile3 = dataframe[col_name].quantile(q3)
-        interquantile_range = quartile3 - quartile1
-        up_limit = quartile3 + 1.5 * interquantile_range
-        low_limit = quartile1 - 1.5 * interquantile_range
-        return low_limit, up_limit
-
-    def high_correlated_cols(dataframe, plot=False, corr_th=0.75):
-        corr = dataframe.corr()
-        corr_matrix = corr.abs()
-        upper_triangle_matrix = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool_))
-        drop_list = [col for col in upper_triangle_matrix.columns if any(upper_triangle_matrix[col] > corr_th)]
-        if plot:
-            sns.set(rc={"figure.figsize": (15, 15)})
-            sns.heatmap(corr, cmap="RdBu")
-            plt.show()
-        return drop_list
-
-    # def remove_outlier(dataframe, num_cols):
-    #     low_limit, up_limit = outlier_thresholds(dataframe, num_cols)
-    #     df_without_outliers = dataframe[~((dataframe[num_cols] < low_limit) | (dataframe[num_cols] > up_limit))]
-    #     return df_without_outliers
-
-    def rare_encoder(dataframe, rare_perc):
-        temp_df = dataframe.copy()
-
-        rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == "O"
-                        and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis=None)]
-
-        for var in rare_columns:
-            tmp = temp_df[var].value_counts() / len(temp_df)
-            rare_labels = tmp[tmp < rare_perc].index
-            temp_df[var] = np.where(temp_df[var].isin(rare_labels), "Rare", temp_df[var])
-
-        return temp_df
-
-    def one_hot_encoder(dataframe, categorical_cols, drop_first=False):
-        dataframe = pd.get_dummies(dataframe, columns=categorical_cols, drop_first=drop_first)
-        return dataframe
-
-    def label_encoder(dataframe, binary_col):
-        labelencoder = LabelEncoder()
-        dataframe[binary_col] = labelencoder.fit_transform(dataframe[binary_col])
-        return dataframe
-
-    def determine_season(date):
-        month = date.month
-        if 3 <= month <= 5:
-            return 'Spring'
-        elif 6 <= month <= 8:
-            return 'Summer'
-        elif 9 <= month <= 11:
-            return 'Autumn'
-        else:
-            return 'Winter'
-
-    dataframe = pd.concat([old_data, new_data])
+def prediction_data_prep(dataframe):
+    pd.set_option('future.no_silent_downcasting', True)
 
     dataframe = dataframe.drop(["Booking_ID", "P-C", "P-not-C"], axis=1)
-    dataframe['booking status'] = dataframe['booking status'].replace({'Canceled': 1, 'Not_Canceled': 0}).astype(int)
+
+    # Converting 'booking status' to numerical values
+    dataframe['booking status'] = dataframe['booking status'].replace({'Canceled': 1, 'Not_Canceled': 0}).astype(
+        int).infer_objects(copy=False)
+
+    # Converting 'date of reservation' to datetime format and filtering out null values and dates before 2017-06-30
     dataframe["date of reservation"] = pd.to_datetime(dataframe["date of reservation"], format="%m/%d/%Y",
                                                       errors='coerce')
     dataframe = dataframe.dropna(axis=0)
     dataframe = dataframe[dataframe['date of reservation'] > '2017-06-30']
+
+    # Filtering out rows with 'type of meal' as "Meal Plan 3"
     dataframe = dataframe[dataframe["type of meal"] != "Meal Plan 3"]
 
-    cat_cols, num_cols, cat_but_car = grab_col_names(dataframe)
+    # Enter column names by type
+    cat_cols = ['type of meal', 'room type', 'market segment type', 'number of adults', 'number of children', 'car parking space', 'repeated', 'special requests', 'booking status']
+    num_cols = ['number of weekend nights', 'number of week nights', 'lead time', 'average price', 'date of reservation']
+    cat_but_car = []
 
+    # Moving numeric columns that contain "number" to 'num_cols'
     for col in cat_cols.copy():
         if re.search(r"number", str(col)):
             num_cols.append(col)
             cat_cols.remove(col)
 
-    # for col in num_cols:
-    #     dataframe = remove_outlier(dataframe, col)
-
+    # Creating new columns: 'total number of customers', 'number of total nights', 'total price'
     dataframe["total number of customers"] = dataframe["number of adults"] + dataframe["number of children"]
-
     dataframe["number of total nights"] = dataframe["number of weekend nights"] + dataframe["number of week nights"]
-
     dataframe["total price"] = dataframe["number of total nights"] * dataframe["average price"]
 
-    dataframe.loc[(dataframe['number of adults'] == 0) & (dataframe['number of children'] > 0), 'guest type'] = 'only children'
-    dataframe.loc[(dataframe['number of adults'] == 1) & (dataframe['number of children'] == 0), 'guest type'] = 'single'
-    dataframe.loc[(dataframe['number of adults'] == 2) & (dataframe['number of children'] == 0), 'guest type'] = 'couple'
-    dataframe.loc[(dataframe['number of adults'] > 0) & (dataframe['number of children'] > 0), 'guest type'] = 'family'
-    dataframe.loc[(dataframe['number of adults'] > 2) & (dataframe['number of children'] == 0), 'guest type'] = 'a group of guest'
+    # Creation of the 'guest type' column
+    dataframe['guest type'] = [
+        'only children' if adult == 0 and child > 0 else
+        'single' if adult == 1 and child == 0 else
+        'couple' if adult == 2 and child == 0 else
+        'family' if adult > 0 and child > 0 else
+        'a group of guest' if adult > 2 and child == 0 else
+        ''  # default value
+        for adult, child in zip(dataframe['number of adults'], dataframe['number of children'])
+    ]
 
-    dataframe.loc[(dataframe['number of weekend nights'] == 0) & (dataframe['number of week nights'] == 0), 'night type'] = 'daily'
-    dataframe.loc[(dataframe['number of weekend nights'] == 0) & (dataframe['number of week nights'] != 0), 'night type'] = 'only weekdays'
-    dataframe.loc[(dataframe['number of weekend nights'] != 0) & (dataframe['number of week nights'] == 0), 'night type'] = 'only weekends'
-    dataframe.loc[(dataframe['number of weekend nights'] != 0) & (dataframe['number of week nights'] != 0), 'night type'] = 'mixed'
+    # Creation of the 'night type' column
+    dataframe['night type'] = [
+        'daily' if weekend == 0 and week == 0 else
+        'only weekdays' if weekend == 0 and week != 0 else
+        'only weekends' if weekend != 0 and week == 0 else
+        'mixed' if weekend != 0 and week != 0 else
+        ''  # default value
+        for weekend, week in zip(dataframe['number of weekend nights'], dataframe['number of week nights'])
+    ]
 
-    dataframe['date of transaction'] = dataframe.apply(lambda row: row['date of reservation'] - timedelta(days=row['lead time']),
-                                                       axis=1)
-
+    # Creating new columns: 'date of transaction', 'reservation month', 'reservation season', 'transaction month', 'transaction season'
+    dataframe['date of transaction'] = dataframe['date of reservation'] - pd.to_timedelta(dataframe['lead time'],
+                                                                                          unit='d')
     dataframe['reservation month'] = dataframe['date of reservation'].dt.month_name()
     dataframe['reservation season'] = dataframe['date of reservation'].apply(determine_season)
-
     dataframe['transaction month'] = dataframe['date of transaction'].dt.month_name()
     dataframe['transaction season'] = dataframe['date of transaction'].apply(determine_season)
 
-    bins = [-1, 1, 50, 100, 200, 500]
-    Labels = ["Free", 'Less than 50', '50 - 100', "100 - 199", "200 and above"]
-    dataframe['Average Price Range'] = pd.cut(dataframe['average price'], bins=bins, labels=Labels, right=False)
+    # Creating new columns with range labels: 'Average Price Range', 'lead time Range'
+    average_price_bins = [-1, 1, 50, 100, 200, 500]
+    average_price_labels = ["Free", 'Less than 50', '50 - 100', "100 - 199", "200 and above"]
+    dataframe['Average Price Range'] = pd.cut(dataframe['average price'], bins=average_price_bins,
+                                              labels=average_price_labels, right=False)
 
-    bins = [-1, 92, 183, 274, 500]
-    Labels = ["0-3 months", '3-6 months', '6-9 months', "over 9 months"]
-    dataframe['lead time Range'] = pd.cut(dataframe['lead time'], bins=bins, labels=Labels, right=False)
+    lead_time_bins = [-1, 92, 183, 274, 500]
+    lead_time_labels = ["0-3 months", '3-6 months', '6-9 months', "over 9 months"]
+    dataframe['lead time Range'] = pd.cut(dataframe['lead time'], bins=lead_time_bins, labels=lead_time_labels,
+                                          right=False)
 
+    # Dropping unnecessary columns
     dataframe = dataframe.drop(["date of reservation", "date of transaction"], axis=1)
 
-    cat_cols, num_cols, cat_but_car = grab_col_names(dataframe)
+    # Enter column names by type
+    cat_cols = ['type of meal', 'room type', 'market segment type', 'number of adults', 'number of children', 'car parking space', 'repeated', 'special requests', 'booking status']
+    num_cols = ['number of weekend nights', 'number of week nights', 'lead time', 'average price']
+    cat_but_car = []
 
-    for col in cat_cols.copy():
-        if re.search(r"number", str(col)):
-            num_cols.append(col)
-            cat_cols.remove(col)
+    # Moving numeric columns that contain "number" to 'num_cols'
+    num_cols += [col for col in cat_cols if re.search(r"number", col)]
+    cat_cols = [col for col in cat_cols if col not in num_cols]
 
+    # Dropping highly correlated columns from numeric columns
     drop_list = high_correlated_cols(dataframe[num_cols])
     dataframe = dataframe.drop(drop_list, axis=1)
 
-    dataframe = rare_encoder(dataframe, 0.01)
+    # One-hot encoding for categorical columns with 2 < unique values <= 12
+    ohe_cols = ['type of meal', 'room type', 'market segment type', 'guest type', 'night type', 'reservation month', 'reservation season', 'transaction month', 'transaction season', 'special requests', 'Average Price Range', 'lead time Range']
+    dataframe = pd.get_dummies(dataframe, columns=ohe_cols, drop_first=True, dummy_na=True)
 
-    binary_cols = [col for col in dataframe if dataframe[col].dtypes not in [int, float]
-                   and dataframe[col].nunique() == 2]
+    # # Enter column names by type
+    # cat_cols = ['number of adults', 'number of children', 'number of weekend nights', 'car parking space', 'repeated', 'booking status', 'type of meal_Meal Plan 2', 'type of meal_Not Selected', 'type of meal_nan', 'room type_Room_Type 2', 'room type_Room_Type 3', 'room type_Room_Type 4', 'room type_Room_Type 5', 'room type_Room_Type 6', 'room type_Room_Type 7', 'room type_nan', 'market segment type_Complementary', 'market segment type_Corporate', 'market segment type_Offline', 'market segment type_Online', 'market segment type_nan', 'guest type_couple', 'guest type_family', 'guest type_only children', 'guest type_single', 'guest type_nan', 'night type_mixed', 'night type_only weekdays', 'night type_only weekends', 'night type_nan', 'reservation month_August', 'reservation month_December', 'reservation month_February', 'reservation month_January', 'reservation month_July', 'reservation month_June', 'reservation month_March', 'reservation month_May', 'reservation month_November', 'reservation month_October', 'reservation month_September', 'reservation month_nan', 'reservation season_Spring', 'reservation season_Summer', 'reservation season_Winter', 'reservation season_nan', 'transaction month_August', 'transaction month_December', 'transaction month_February', 'transaction month_January', 'transaction month_July', 'transaction month_June', 'transaction month_March', 'transaction month_May', 'transaction month_November', 'transaction month_October', 'transaction month_September', 'transaction month_nan', 'transaction season_Spring', 'transaction season_Summer', 'transaction season_Winter', 'transaction season_nan', 'special requests_1.0', 'special requests_2.0', 'special requests_3.0', 'special requests_4.0', 'special requests_5.0', 'special requests_nan', 'Average Price Range_Less than 50', 'Average Price Range_50 - 100', 'Average Price Range_100 - 199', 'Average Price Range_200 and above', 'Average Price Range_nan', 'lead time Range_3-6 months', 'lead time Range_6-9 months', 'lead time Range_over 9 months', 'lead time Range_nan']
+    # num_cols = ['number of week nights', 'lead time', 'average price']
+    # cat_but_car = []
+    #
+    # # Moving numeric columns that contain "number" to 'num_cols'
+    # num_cols += [col for col in cat_cols if re.search(r"number", col)]
+    # cat_cols = [col for col in cat_cols if col not in num_cols]
+    #
+    # # Robust scaling for numeric columns
+    # # rs = RobustScaler()
+    # rs = joblib.load('robust_scaler.pkl')
+    # dataframe[num_cols] = rs.transform(dataframe[num_cols])
 
-    for col in binary_cols:
-        label_encoder(dataframe, col)
+    # column names of the main data set
+    A_column_names = ['number of adults', 'number of children', 'number of weekend nights',
+                      'number of week nights', 'car parking space', 'lead time', 'repeated',
+                      'average price', 'booking status', 'type of meal_Meal Plan 2',
+                      'type of meal_Not Selected', 'type of meal_nan',
+                      'room type_Room_Type 1', 'room type_Room_Type 2',
+                      'room type_Room_Type 4', 'room type_Room_Type 6', 'room type_nan',
+                      'market segment type_Corporate', 'market segment type_Offline',
+                      'market segment type_Online', 'market segment type_Rare',
+                      'market segment type_nan', 'guest type_a group of guest',
+                      'guest type_couple', 'guest type_family', 'guest type_single',
+                      'guest type_nan', 'night type_mixed', 'night type_only weekdays',
+                      'night type_only weekends', 'night type_nan',
+                      'reservation month_August', 'reservation month_December',
+                      'reservation month_February', 'reservation month_January',
+                      'reservation month_July', 'reservation month_June',
+                      'reservation month_March', 'reservation month_May',
+                      'reservation month_November', 'reservation month_October',
+                      'reservation month_September', 'reservation month_nan',
+                      'reservation season_Spring', 'reservation season_Summer',
+                      'reservation season_Winter', 'reservation season_nan',
+                      'transaction month_August', 'transaction month_December',
+                      'transaction month_February', 'transaction month_January',
+                      'transaction month_July', 'transaction month_June',
+                      'transaction month_March', 'transaction month_May',
+                      'transaction month_November', 'transaction month_October',
+                      'transaction month_September', 'transaction month_nan',
+                      'transaction season_Spring', 'transaction season_Summer',
+                      'transaction season_Winter', 'transaction season_nan',
+                      'special requests_1.0', 'special requests_2.0', 'special requests_3.0',
+                      'special requests_4.0', 'special requests_5.0', 'special requests_nan',
+                      'Average Price Range_Less than 50', 'Average Price Range_50 - 100',
+                      'Average Price Range_100 - 199', 'Average Price Range_200 and above',
+                      'Average Price Range_nan', 'lead time Range_3-6 months',
+                      'lead time Range_6-9 months', 'lead time Range_over 9 months',
+                      'lead time Range_nan']
+    A = pd.DataFrame(columns=A_column_names)
+    A_columns = A.columns
 
-    ohe_cols = [col for col in dataframe[cat_cols].columns if 12 >= dataframe[col].nunique() > 2]
-    dataframe = one_hot_encoder(dataframe, ohe_cols)
+    dataframe2 = dataframe.reindex(columns=A_columns, fill_value=False)
+    dataframe2 = dataframe2.fillna(False)
+    missing_columns = [col for col in dataframe2.columns if col not in A_columns]
+    dataframe2 = dataframe2.drop(columns=missing_columns)
 
-    rs = RobustScaler()
-
-    cat_cols, num_cols, cat_but_car = grab_col_names(dataframe)
-
-    for col in cat_cols.copy():
-        if re.search(r"number", str(col)):
-            num_cols.append(col)
-            cat_cols.remove(col)
-
-    dataframe[num_cols] = rs.fit_transform(dataframe[num_cols])
-
-    y = dataframe["booking status"]
-    X = dataframe.drop(["booking status"], axis=1)
-
-    estimator = DecisionTreeClassifier(random_state=47)
-
-    rfe_best = RFE(estimator, n_features_to_select=60)
-
-    size = len(new_data)
-
-    last_entry = pd.DataFrame(X.iloc[-size:], columns=X.columns)
-
-    rfe_best.fit(X, y)
-
-    last_entry = rfe_best.transform(last_entry)
+    X_selected_df = dataframe2[['number of adults', 'number of weekend nights', 'number of week nights',
+                       'car parking space', 'lead time', 'repeated', 'average price',
+                       'type of meal_Not Selected', 'room type_Room_Type 4',
+                       'market segment type_Corporate', 'market segment type_Offline',
+                       'market segment type_Online', 'guest type_couple', 'guest type_single',
+                       'night type_mixed', 'night type_only weekdays',
+                       'reservation month_December', 'reservation month_February',
+                       'reservation month_January', 'reservation month_July',
+                       'reservation month_March', 'reservation month_May',
+                       'reservation month_November', 'reservation month_October',
+                       'reservation month_September', 'reservation season_Summer',
+                       'reservation season_Winter', 'transaction month_December',
+                       'transaction month_January', 'transaction season_Spring',
+                       'transaction season_Summer', 'special requests_1.0',
+                       'special requests_2.0', 'special requests_3.0', 'special requests_4.0']].copy()
 
     new_model = joblib.load("model/lgbm.pkl")
-
-    prediction = new_model.predict(last_entry)
+    prediction = new_model.predict(X_selected_df)
 
     return prediction

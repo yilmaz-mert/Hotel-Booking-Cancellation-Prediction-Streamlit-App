@@ -147,7 +147,7 @@ result_image = cv2.cvtColor(result_image, cv2.COLOR_BGRA2RGBA)  # Convert from B
 
 # load dataframe
 df = pd.read_csv("data/booking.csv")
-random_sample = df.sample(n=38)
+random_sample = df.sample(n=38).reset_index()
 
 if 'page' not in st.session_state:
     st.session_state.page = 0
@@ -186,7 +186,7 @@ with ph.container():
             elif st.session_state.page == 2:
                 try:
                     # Make predictions
-                    predictions = preparation_df.booking_data_prep_for_prediction(df, random_sample)
+                    predictions = preparation_df.prediction_data_prep(random_sample)
 
                     # Select non-0 from the predictions
                     non_zero_predictions = predictions[predictions != 1]
@@ -216,13 +216,13 @@ with ph.container():
 
             elif st.session_state.page == 1:
                 st.subheader("Generated random data:")
-                drop_df = random_sample.drop(['booking status'], axis=1)
+                drop_df = random_sample.drop(['booking status', 'index', 'Booking_ID'], axis=1)
                 st.write(drop_df)
 
             elif st.session_state.page == 2:
                 try:
                     # Add predictions as a new column to the DataFrame
-                    drop_df2 = random_sample.drop(['booking status'], axis=1)
+                    drop_df2 = random_sample.drop(['booking status', 'index', 'Booking_ID'], axis=1)
                     drop_df2['Predictions'] = predictions
                     # View predictions
                     st.subheader("Data with Predictions:")

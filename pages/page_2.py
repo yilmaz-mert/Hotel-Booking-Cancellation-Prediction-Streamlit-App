@@ -1,13 +1,8 @@
-import joblib
 import streamlit as st
 import pandas as pd
 import random
 from st_pages import Page, show_pages
-from sklearn.datasets import load_iris
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
 from utils import page_utils, preparation_df
-from sklearn.feature_selection import RFE
 
 
 st.set_page_config(layout="wide")
@@ -192,7 +187,7 @@ with ph.container():
                 })
 
                 single_df.to_csv('single_df.csv', index=False)
-                prediction = preparation_df.booking_data_prep_for_prediction(old_data, single_df)
+                prediction = preparation_df.prediction_data_prep(single_df)
 
                 # Ekrana yazdır
                 single_df['Predictions'] = prediction
@@ -238,7 +233,7 @@ with ph.container():
             uploaded_file = st.file_uploader("Upload a file", type=["csv"], key="file", on_change=page_utils.first_page)
             # Make predictions
             df = pd.read_csv(uploaded_file)
-            predictions = preparation_df.booking_data_prep_for_prediction(old_data, df)
+            predictions = preparation_df.prediction_data_prep(df)
 
             # Add predictions as a new column to the DataFrame
             df['Predictions'] = predictions
